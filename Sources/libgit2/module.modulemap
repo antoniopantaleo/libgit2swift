@@ -1,0 +1,5 @@
+module Libgit2Package [system] {
+  header "build/include/git2.h"
+  link "lgit2"
+  export *
+}
