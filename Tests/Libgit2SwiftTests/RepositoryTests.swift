@@ -23,18 +23,22 @@ final class RepositoryTests: XCTestCase {
         try super.tearDownWithError()
     }
     
-    func test_canNotCreateRepositoryFromNonGitDirectory() throws {
+    func test_canNotCreateRepositoryFromNonGitDirectory() async throws {
         let directory = testDirectory.appending(path: "fake-directory-with-no-git-inside")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
-        let repository = Repository(path: directory.path())
-        XCTAssertNil(repository)
+        do {
+            _ = try await Repository(path: directory)
+            XCTFail("Should have thrown")
+        } catch {
+            XCTAssertNotNil(error)
+        }
     }
     
-    func test_canCreateRepositoryFromGitDirectory() throws {
+    func test_canCreateRepositoryFromGitDirectory() async throws {
         let directory = testDirectory.appending(path: "fake-directory-with-git-inside")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
         try git("init", directory: directory)
-        let repository = Repository(path: directory.path())
+        let repository = try await Repository(path: directory)
         XCTAssertNotNil(repository)
     }
     
