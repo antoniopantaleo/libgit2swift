@@ -42,7 +42,7 @@ final class RepositoryTests: XCTestCase {
         XCTAssertNotNil(repository)
     }
     
-    func test_clone() async throws {
+    func test_canCloneWithRealRemoteURL() async throws {
         let directory = testDirectory.appending(path: "antoniopantaleo-cloned")
         let url = URL(string: "https://github.com/antoniopantaleo/antoniopantaleo.git")!
         let repository = try await Repository(clone: url, path: directory)
