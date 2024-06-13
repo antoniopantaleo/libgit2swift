@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Libgit2Package
+import libgit2
 
 public enum Libgit2Swift {
     public static func bootstrap() {

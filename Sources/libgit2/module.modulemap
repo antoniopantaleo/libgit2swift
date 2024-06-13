@@ -1,4 +1,4 @@
-module Libgit2Package [system] {
+module libgit2 [system] {
   header "build/include/git2.h"
   link "lgit2"
   export *

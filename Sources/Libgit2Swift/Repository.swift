@@ -7,7 +7,7 @@
 
 import os
 import Foundation
-import Libgit2Package
+import libgit2
 
 public actor Repository {
     
