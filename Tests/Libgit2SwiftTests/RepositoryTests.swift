@@ -14,12 +14,14 @@ final class RepositoryTests: XCTestCase {
     
     override func setUpWithError() throws {
         try super.setUpWithError()
+        Libgit2Swift.bootstrap()
         try? FileManager.default.removeItem(atPath: testDirectory.path())
         try FileManager.default.createDirectory(at: testDirectory, withIntermediateDirectories: false)
     }
     
     override func tearDownWithError() throws {
         try FileManager.default.removeItem(atPath: testDirectory.path())
+        Libgit2Swift.shutdown()
         try super.tearDownWithError()
     }
     

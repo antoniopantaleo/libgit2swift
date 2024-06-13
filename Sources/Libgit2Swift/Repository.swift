@@ -16,7 +16,6 @@ public actor Repository {
     private var repository: OpaquePointer?
     
     public init(path: URL) async throws {
-        git_libgit2_init()
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             Task {
                 let exitCode = git_repository_open(&repository, path.path())
@@ -27,14 +26,12 @@ public actor Repository {
                 if let repoDir = git_repository_path(repository) {
                     logger.info("Repository cloned at \(String(cString: repoDir))")
                 }
-                git_libgit2_shutdown()
                 continuation.resume()
             }
         }
     }
     
     public init(clone: URL, path: URL) async throws {
-        git_libgit2_init()
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             Task {
                 let exitCode = git_clone(&repository, clone.absoluteString, path.path(), nil)
@@ -45,7 +42,6 @@ public actor Repository {
                 if let repoDir = git_repository_path(repository) {
                     logger.info("Repository cloned at \(String(cString: repoDir))")
                 }
-                git_libgit2_shutdown()
                 continuation.resume()
             }
         }
