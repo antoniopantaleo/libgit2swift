@@ -11,10 +11,6 @@ import Libgit2Package
 
 let STATUS_CODE_OK = 0
 
-enum GitError: Swift.Error {
-    case clone(message: String)
-}
-
 public actor Repository {
     
     private let logger = Logger(subsystem: "com.antoniopantaleo.Libgit2Swift", category: "Repository")
