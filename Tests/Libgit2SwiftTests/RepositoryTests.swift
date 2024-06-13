@@ -5,11 +5,13 @@
 //  Created by Antonio on 12/06/24.
 //
 
+import os
 import XCTest
 import Libgit2Swift
 
 final class RepositoryTests: XCTestCase {
     
+    private let logger = Logger(subsystem: "com.antoniopantaleo.Libgit2SwiftTests", category: "RepositoryTests")
     private let testDirectory = FileManager.default.temporaryDirectory.appending(path: "RepositoryTests")
     
     override func setUpWithError() throws {
@@ -26,9 +28,12 @@ final class RepositoryTests: XCTestCase {
     }
     
     func test_canNotCreateRepositoryFromNonGitDirectory() async throws {
+        logger.info("Creating a fake directory with no git inside")
         let directory = testDirectory.appending(path: "fake-directory-with-no-git-inside")
+        logger.info("Creating directory at \(directory)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
         do {
+            logger.info("Trying to create a repository from \(directory)")
             _ = try await Repository(path: directory)
             XCTFail("Should have thrown")
         } catch {

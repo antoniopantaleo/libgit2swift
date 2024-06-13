@@ -11,7 +11,7 @@ import Libgit2Package
 
 public actor Repository {
     
-    private let logger = Logger(subsystem: "com.antoniopantaleo.Libgit2Swift", category: "Repository")
+    private let logger = Logger(category: "Repository")
     private let STATUS_CODE_OK = 0
     private var repository: OpaquePointer?
     
