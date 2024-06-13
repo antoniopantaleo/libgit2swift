@@ -4,6 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "Libgit2Swift",
+    platforms: [.macOS(.v13)],
     products: [
         .library(
             name: "Libgit2Swift",

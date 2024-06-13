@@ -10,25 +10,39 @@ import Libgit2Swift
 
 final class RepositoryTests: XCTestCase {
     
+    private let testDirectory = FileManager.default.temporaryDirectory.appending(path: "RepositoryTests")
+    
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        try? FileManager.default.removeItem(atPath: testDirectory.path())
+        try FileManager.default.createDirectory(at: testDirectory, withIntermediateDirectories: false)
+    }
+    
+    override func tearDownWithError() throws {
+        try FileManager.default.removeItem(atPath: testDirectory.path())
+        try super.tearDownWithError()
+    }
+    
     func test_canNotCreateRepositoryFromNonGitDirectory() throws {
-        let directory = FileManager.default.temporaryDirectory.appending(path: "fake-directory-with-no-git-inside")
+        let directory = testDirectory.appending(path: "fake-directory-with-no-git-inside")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
         let repository = Repository(path: directory.path())
         XCTAssertNil(repository)
-        addTeardownBlock {
-            try FileManager.default.removeItem(atPath: directory.path())
-        }
     }
     
     func test_canCreateRepositoryFromGitDirectory() throws {
-        let directory = FileManager.default.temporaryDirectory.appending(path: "fake-directory-with-git-inside")
+        let directory = testDirectory.appending(path: "fake-directory-with-git-inside")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
         try git("init", directory: directory)
         let repository = Repository(path: directory.path())
         XCTAssertNotNil(repository)
-        addTeardownBlock {
-            try FileManager.default.removeItem(atPath: directory.path())
-        }
+    }
+    
+    func test_clone() async throws {
+        let directory = testDirectory.appending(path: "antoniopantaleo-cloned")
+        let url = URL(string: "https://github.com/antoniopantaleo/antoniopantaleo.git")!
+        let repository = try await Repository(clone: url, path: directory)
+        XCTAssertNotNil(repository)
     }
     
     // MARK: - Helpers
