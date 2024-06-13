@@ -19,6 +19,15 @@ let package = Package(
         .target(
             name: "Libgit2Swift",
             dependencies: ["libgit2"]
+        ),
+        .testTarget(
+            name: "Libgit2SwiftTests",
+            dependencies: [
+                .target(name: "Libgit2Swift")
+            ],
+            resources: [
+                .process("Libgit2Swift.xctestplan")
+            ]
         )
     ]
 )

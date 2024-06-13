@@ -1,0 +1,33 @@
+{
+  "configurations" : [
+    {
+      "id" : "3D3E7685-E45B-42A3-8613-31931E7FA643",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : {
+      "targets" : [
+        {
+          "containerPath" : "container:",
+          "identifier" : "Libgit2Swift",
+          "name" : "Libgit2Swift"
+        }
+      ]
+    },
+    "testExecutionOrdering" : "random"
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "Libgit2SwiftTests",
+        "name" : "Libgit2SwiftTests"
+      }
+    }
+  ],
+  "version" : 1
+}
