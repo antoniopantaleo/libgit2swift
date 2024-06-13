@@ -56,6 +56,17 @@ final class RepositoryTests: XCTestCase {
         XCTAssertNotNil(repository)
     }
     
+    func test_canNotCloneWithFakeRemoteURL() async throws {
+        let directory = testDirectory.appending(path: "repo")
+        let url = URL(string: "https://a-repository-that-doesn't-exist")!
+        do {
+            _ = try await Repository(clone: url, path: directory)
+            XCTFail("Should have thrown")
+        } catch {
+            XCTAssertNotNil(error)
+        }
+    }
+    
     // MARK: - Helpers
     
     @discardableResult
