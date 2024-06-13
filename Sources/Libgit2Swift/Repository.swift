@@ -5,8 +5,8 @@
 //  Created by Antonio Pantaleo on 12/06/24.
 //
 
-import Foundation
 import os
+import Foundation
 import Libgit2Package
 
 public actor Repository {
