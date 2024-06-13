@@ -9,12 +9,10 @@ import Foundation
 import os
 import Libgit2Package
 
-let STATUS_CODE_OK = 0
-
 public actor Repository {
     
     private let logger = Logger(subsystem: "com.antoniopantaleo.Libgit2Swift", category: "Repository")
-    
+    private let STATUS_CODE_OK = 0
     private var repository: OpaquePointer?
     
     public init(path: URL) async throws {
