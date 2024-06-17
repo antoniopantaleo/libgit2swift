@@ -13,7 +13,6 @@ import libgit2
 public actor Repository {
     
     private let logger = Logger(category: "Repository")
-    private let STATUS_CODE_OK = 0
     private var repository: OpaquePointer?
     
     deinit {
@@ -29,7 +28,7 @@ public actor Repository {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             Task {
                 let exitCode = git_repository_open(&repository, path.path())
-                if exitCode != STATUS_CODE_OK {
+                if exitCode != GIT_OK.rawValue {
                     let error = git_error_last().pointee.message
                     return continuation.resume(throwing: GitError.clone(message: String(cString: error!)))
                 }
@@ -49,7 +48,7 @@ public actor Repository {
                 logger.info("Prepare to clone repo \(repo)")
                 let exitCode = git_clone(&repository, repo.absoluteString, path.path(), nil)
                 logger.info("Finished cloning \(repo) in \(now.distance(to: Date.now))")
-                if exitCode != STATUS_CODE_OK {
+                if exitCode != GIT_OK.rawValue {
                     let error = git_error_last().pointee.message
                     return continuation.resume(throwing: GitError.clone(message: String(cString: error!)))
                 }
@@ -70,7 +69,7 @@ public actor Repository {
             let oid = git_object_id(repository)
             git_revwalk_push_head(walker)
             git_revwalk_sorting(walker, GIT_SORT_TOPOLOGICAL.rawValue | GIT_SORT_REVERSE.rawValue)
-            while git_revwalk_next(UnsafeMutablePointer(mutating: oid), walker) == STATUS_CODE_OK {
+            while git_revwalk_next(UnsafeMutablePointer(mutating: oid), walker) == GIT_OK.rawValue {
                 group.addTask { [weak self] in
                     guard let repository = await self?.repository else { throw GitError.log(message: "Failed to read repository") }
                     var commit: OpaquePointer?
