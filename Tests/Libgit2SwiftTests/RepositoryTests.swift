@@ -65,13 +65,28 @@ final class RepositoryTests: XCTestCase {
         }
     }
     
+    func test_gitLog_getAllCommitMessages() async throws {
+        let directory = testDirectory.appending(path: "fake-directory-with-commits-inside")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        try git("init", directory: directory)
+        try git("commit", "-m", "First commit", "--allow-empty", "--no-gpg-sign", directory: directory)
+        try git("commit", "-m", "Second commit", "--allow-empty", "--no-gpg-sign", directory: directory)
+        let repository = try await Repository(path: directory)
+        let log = try await repository.log()
+        XCTAssertEqual(
+            log.map(\.message).map { $0.trimmingCharacters(in: .newlines)},
+            ["First commit", "Second commit"]
+        )
+    }
+    
+    
     // MARK: - Helpers
     
     @discardableResult
-    private func git(_ command: String, directory: URL) throws -> String? {
+    private func git(_ command: String..., directory: URL) throws -> String? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["git", "-C", directory.path(), command]
+        process.arguments = ["git", "-C", directory.path()] +  command
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = pipe
