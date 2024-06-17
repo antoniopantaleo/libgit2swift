@@ -23,6 +23,12 @@ public actor Repository {
         git_libgit2_init()
     }
     
+    
+    /// Open a git repository from a given path
+    ///
+    /// > The path must be a valid git repository, otherwise an error is thrown
+    ///
+    /// - Parameter path: The path where the repository is located
     public init(path: URL) async throws {
         self.init()
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -40,6 +46,13 @@ public actor Repository {
         }
     }
     
+    /// Clone a git repository from a given URL
+    ///
+    /// > The path must be a valid git repository, otherwise an error is thrown
+    ///
+    /// - Parameters:
+    ///   - repo: The URL of the repository to clone
+    ///   - path: The path where to clone the repository
     public init(clone repo: URL, path: URL) async throws {
         self.init()
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -60,6 +73,10 @@ public actor Repository {
         }
     }
     
+    
+    /// Get the logs of the repository
+    ///
+    /// - Returns: An array of logs
     public func log() async throws -> [Log] {
         try await withThrowingTaskGroup(of: Log?.self, returning: [Log].self) { [weak self] group in
             guard let repository = await self?.repository else { throw GitError.log(message: "Failed to read repository") }
