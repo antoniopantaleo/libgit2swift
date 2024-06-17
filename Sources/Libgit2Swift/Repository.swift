@@ -78,34 +78,28 @@ public actor Repository {
     ///
     /// - Returns: An array of logs
     public func log() async throws -> [Log] {
-        try await withThrowingTaskGroup(of: Log?.self, returning: [Log].self) { [weak self] group in
-            guard let repository = await self?.repository else { throw GitError.log(message: "Failed to read repository") }
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[Log], Error>) in
             var logs = [Log]()
-            var walker: OpaquePointer?
-            git_revwalk_new(&walker, repository)
-            let oid = git_object_id(repository)
-            git_revwalk_push_head(walker)
-            git_revwalk_sorting(walker, GIT_SORT_TOPOLOGICAL.rawValue | GIT_SORT_REVERSE.rawValue)
-            while git_revwalk_next(UnsafeMutablePointer(mutating: oid), walker) == GIT_OK.rawValue {
-                group.addTask { [weak self] in
-                    guard let repository = await self?.repository else { throw GitError.log(message: "Failed to read repository") }
+            Task {
+                var walker: OpaquePointer?
+                git_revwalk_new(&walker, repository)
+                git_revwalk_push_head(walker)
+                git_revwalk_sorting(walker, GIT_SORT_TOPOLOGICAL.rawValue | GIT_SORT_REVERSE.rawValue)
+                var oid = git_oid()
+                while git_revwalk_next(&oid, walker) == GIT_OK.rawValue {
                     var commit: OpaquePointer?
-                    git_commit_lookup(&commit, repository, oid)
+                    git_commit_lookup(&commit, repository, &oid)
                     guard let message = git_commit_message(commit) else {
-                        throw GitError.log(message: "No message")
+                        return continuation.resume(throwing: GitError.log(message: "No message"))
                     }
                     let stringMessage = String(cString: message)
                     let log = Log(message: stringMessage)
-                    return log
+                    logs.append(log)
+                    git_commit_free(commit)
                 }
-                
-                for try await log in group {
-                    if let log = log {
-                        logs.append(log)
-                    }
-                }
+                git_revwalk_free(walker)
+                continuation.resume(returning: logs)
             }
-            return logs
         }
     }
 }
