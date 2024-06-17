@@ -9,6 +9,7 @@ import os
 import Foundation
 import libgit2
 
+/// A git repository
 public actor Repository {
     
     private let logger = Logger(category: "Repository")
