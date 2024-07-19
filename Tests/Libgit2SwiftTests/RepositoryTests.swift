@@ -79,7 +79,7 @@ final class RepositoryTests: XCTestCase {
         )
     }
     
-    func test_canAddFilesToTheIndex() async throws {
+    func test_canAddAFileToTheIndex() async throws {
         let directory = testDirectory.appending(path: "git-directory")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
         let filePath = directory.appending(path: "file1.txt")
