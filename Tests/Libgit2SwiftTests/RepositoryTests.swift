@@ -95,6 +95,29 @@ final class RepositoryTests: XCTestCase {
         XCTAssertEqual(indexStatus, "A  file1.txt")
     }
     
+    func test_canAddMultipleFilesToTheIndex() async throws {
+        let directory = testDirectory.appending(path: "git-directory")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        let file1Path = directory.appending(path: "file1.txt")
+        FileManager.default.createFile(
+            atPath: file1Path.path(percentEncoded: false),
+            contents: "Hello world!".data(using: .utf8)!
+        )
+        try FileManager.default.createDirectory(at: directory.appending(path: "folder"), withIntermediateDirectories: false)
+        let file2Path = directory.appending(path: "folder/file2.txt")
+        FileManager.default.createFile(
+            atPath: file2Path.path(percentEncoded: false),
+            contents: "Hello world again!".data(using: .utf8)!
+        )
+        try git("init", directory: directory)
+        let repository = try await Repository(path: directory)
+        try await repository.add(file1Path)
+        try await repository.add(file2Path)
+        let indexStatus = try git("status", "-s", directory: directory)!.components(separatedBy: .newlines)
+        XCTAssertEqual(indexStatus[0], "A  file1.txt")
+        XCTAssertEqual(indexStatus[1], "A  folder/file2.txt")
+    }
+    
     
     // MARK: - Helpers
     
