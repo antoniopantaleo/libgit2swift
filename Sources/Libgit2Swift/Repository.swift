@@ -21,8 +21,8 @@ public actor Repository {
     }
     
     private init(_ path: URL) {
-        git_libgit2_init()
         self.path = path
+        git_libgit2_init()
     }
     
     
