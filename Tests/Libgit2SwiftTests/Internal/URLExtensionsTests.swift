@@ -11,8 +11,26 @@ import XCTest
 final class URLExtensionsTests: XCTestCase {
     
     func test_pathRelative_toParentDirectory() {
-        let url1 = URL(string: "/var/lib")!
-        let url2 = URL(string: "/var/lib/xcode/myFile.txt")!
-        XCTAssertEqual(url2.path(relativeTo: url1)?.path(percentEncoded: false), "xcode/myFile.txt")
+        let baseURL = URL(string: "/var/lib")!
+        let sut = URL(string: "/var/lib/myFile.txt")!
+        XCTAssertEqual(sut.path(relativeTo: baseURL)?.path(percentEncoded: false), "myFile.txt")
+    }
+    
+    func test_pathRelative_toParentDirectory_withAdditionalDirectories() {
+        let baseURL = URL(string: "/var/lib")!
+        let sut = URL(string: "/var/lib/xcode/15.1/myFile.txt")!
+        XCTAssertEqual(sut.path(relativeTo: baseURL)?.path(percentEncoded: false), "xcode/15.1/myFile.txt")
+    }
+    
+    func test_pathRelative_toParentDirectory_withRepeatedOriginalDirectory() {
+        let baseURL = URL(string: "/var/lib")!
+        let sut = URL(string: "/var/lib/xcode/var/lib/myFile.txt")!
+        XCTAssertEqual(sut.path(relativeTo: baseURL)?.path(percentEncoded: false), "xcode/var/lib/myFile.txt")
+    }
+    
+    func test_pathRelative_toParentDirectory_differentDirectories() {
+        let baseURL = URL(string: "/var/lib")!
+        let sut = URL(string: "/xcode/myFile.txt")!
+        XCTAssertNil(sut.path(relativeTo: baseURL))
     }
 }
