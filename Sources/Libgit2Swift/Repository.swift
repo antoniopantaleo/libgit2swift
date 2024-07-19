@@ -14,13 +14,15 @@ public actor Repository {
     
     private let logger = Logger(category: "Repository")
     private var repository: OpaquePointer?
+    private let path: URL
     
     deinit {
         git_libgit2_shutdown()
     }
     
-    private init() {
+    private init(_ path: URL) {
         git_libgit2_init()
+        self.path = path
     }
     
     
@@ -30,7 +32,7 @@ public actor Repository {
     ///
     /// - Parameter path: The path where the repository is located
     public init(path: URL) async throws {
-        self.init()
+        self.init(path)
         let exitCode = git_repository_open(&repository, path.path())
         if exitCode != GIT_OK.rawValue {
             let error = git_error_last().pointee.message
@@ -50,7 +52,7 @@ public actor Repository {
     ///   - repo: The URL of the repository to clone
     ///   - path: The path where to clone the repository
     public init(clone repo: URL, path: URL) async throws {
-        self.init()
+        self.init(path)
         let now = Date.now
         logger.info("Prepare to clone repo \(repo)")
         let exitCode = git_clone(&repository, repo.absoluteString, path.path(), nil)
@@ -89,7 +91,32 @@ public actor Repository {
         }
         git_revwalk_free(walker)
         return logs
-        
-        
+    }
+    
+    /// Add a file to the index
+    ///
+    /// - Parameter file: The file to add
+    public func add(_ file: URL) throws {
+        var index: OpaquePointer?
+        let indexError = git_repository_index(&index, repository)
+        if indexError != GIT_OK.rawValue {
+            let error = git_error_last().pointee.message
+            throw GitError.add(message: String(cString: error!))
+        }
+        guard let filePath = file.path(relativeTo: path)?.path(percentEncoded: false) else {
+            throw GitError.add(message: "No such file or directory \(file.path(percentEncoded: false))")
+        }
+        let addError = git_index_add_bypath(index, filePath)
+        logger.log("Adding \(filePath) to the index")
+        if addError != GIT_OK.rawValue {
+            let error = git_error_last().pointee.message
+            throw GitError.add(message: String(cString: error!))
+        }
+        let writeError = git_index_write(index)
+        if writeError != GIT_OK.rawValue {
+            let error = git_error_last().pointee.message
+            throw GitError.add(message: String(cString: error!))
+        }
+        git_index_free(index)
     }
 }

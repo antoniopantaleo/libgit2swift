@@ -79,6 +79,22 @@ final class RepositoryTests: XCTestCase {
         )
     }
     
+    func test_canAddFilesToTheIndex() async throws {
+        let directory = testDirectory.appending(path: "git-directory")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        let filePath = directory.appending(path: "file1.txt")
+        FileManager.default.createFile(
+            atPath: filePath.path(percentEncoded: false),
+            contents: "Hello world!".data(using: .utf8)!
+        )
+        logger.log("Created file at \(filePath.path(percentEncoded: false))")
+        try git("init", directory: directory)
+        let repository = try await Repository(path: directory)
+        try await repository.add(filePath)
+        let indexStatus = try git("status", "-s", directory: directory)
+        XCTAssertEqual(indexStatus, "A  file1.txt")
+    }
+    
     
     // MARK: - Helpers
     
