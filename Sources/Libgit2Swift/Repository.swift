@@ -121,6 +121,75 @@ public actor Repository {
     }
     
     public func commit(message: String) throws {
-        throw GitError.commit(message: "Not a git repo")
+        var index: OpaquePointer?
+        var treeOid = git_oid()
+        var tree: OpaquePointer?
+        
+        let indexError = git_repository_index(&index, repository)
+        if indexError != GIT_OK.rawValue {
+            let error = git_error_last().pointee.message
+            throw GitError.commit(message: String(cString: error!))
+        }
+        
+        let entryCount = git_index_entrycount(index)
+        if entryCount == 0 {
+            throw GitError.commit(message: "Empty index")
+        }
+        
+        let treeError = git_index_write_tree(&treeOid, index)
+        if treeError != GIT_OK.rawValue {
+            let error = git_error_last().pointee.message
+            throw GitError.commit(message: String(cString: error!))
+        }
+        git_index_free(index)
+        
+        let lookupError = git_tree_lookup(&tree, repository, &treeOid)
+        if lookupError != GIT_OK.rawValue {
+            let error = git_error_last().pointee.message
+            throw GitError.commit(message: String(cString: error!))
+        }
+        var signature: UnsafeMutablePointer<git_signature>? = nil
+        let signatureError = git_signature_now(&signature, "authorName", "authorEmail")
+        if signatureError != GIT_OK.rawValue {
+            let error = git_error_last().pointee.message
+            throw GitError.commit(message: String(cString: error!))
+        }
+        var parentCommit: OpaquePointer?
+        var parentCount: Int = 0
+        if git_repository_head_unborn(repository) == 0 {
+            var headOid = git_oid()
+            git_reference_name_to_id(&headOid, repository, "HEAD")
+            git_commit_lookup(&parentCommit, repository, &headOid)
+            parentCount = 1
+        }
+        
+        var commitOid = git_oid()
+        
+        // Create the commit
+        let commitError = git_commit_create(
+            &commitOid,              // Commit OID
+            repository,              // Repository
+            "HEAD",                  // Reference name
+            signature,               // Author
+            signature,               // Committer
+            nil,                     // Message encoding
+            message,                 // Commit message
+            tree,                    // Tree object
+            parentCount,             // Parent count
+            &parentCommit            // Parent commits
+        )
+        
+        git_signature_free(signature)
+        git_tree_free(tree)
+        if parentCommit != nil {
+            git_commit_free(parentCommit)
+        }
+        
+        if commitError != GIT_OK.rawValue {
+            let error = git_error_last().pointee.message
+            throw GitError.commit(message: String(cString: error!))
+        }
+    }
+    
     }
 }
