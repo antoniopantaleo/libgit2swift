@@ -119,4 +119,8 @@ public actor Repository {
         }
         git_index_free(index)
     }
+    
+    public func commit(message: String) throws {
+        throw GitError.commit(message: "Not a git repo")
+    }
 }

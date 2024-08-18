@@ -11,4 +11,5 @@ enum GitError: Error {
     case clone(message: String)
     case log(message: String)
     case add(message: String)
+    case commit(message: String)
 }

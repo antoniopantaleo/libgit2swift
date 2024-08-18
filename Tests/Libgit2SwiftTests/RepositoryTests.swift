@@ -118,6 +118,17 @@ final class RepositoryTests: XCTestCase {
         XCTAssertEqual(indexStatus[1], "A  folder/file2.txt")
     }
     
+    func test_commit_failsIfIndexIsEmpty() async throws {
+        let directory = testDirectory.appending(path: "not-a-git-repo")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        try git("init", directory: directory)
+        let repository = try await Repository(path: directory)
+        do {
+            try await repository.commit(message: "commit message")
+            XCTFail("Expected to throw but it succeded")
+        } catch {}
+    }
+    
     
     // MARK: - Helpers
     
