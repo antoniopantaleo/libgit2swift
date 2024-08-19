@@ -33,11 +33,7 @@ public actor Repository {
     /// - Parameter path: The path where the repository is located
     public init(path: URL) async throws {
         self.init(path)
-        let exitCode = git_repository_open(&repository, path.path())
-        if exitCode != GIT_OK.rawValue {
-            let error = git_error_last().pointee.message
-            throw GitError.clone(message: String(cString: error!))
-        }
+        try execute(git_repository_open(&repository, path.path()))
         if let repoDir = git_repository_path(repository) {
             logger.info("Repository opened at \(String(cString: repoDir))")
         }
@@ -55,12 +51,8 @@ public actor Repository {
         self.init(path)
         let now = Date.now
         logger.info("Prepare to clone repo \(repo)")
-        let exitCode = git_clone(&repository, repo.absoluteString, path.path(), nil)
+        try execute(git_clone(&repository, repo.absoluteString, path.path(), nil))
         logger.info("Finished cloning \(repo) in \(now.distance(to: Date.now))")
-        if exitCode != GIT_OK.rawValue {
-            let error = git_error_last().pointee.message
-            throw GitError.clone(message: String(cString: error!))
-        }
         if let repoDir = git_repository_path(repository) {
             logger.info("Repository cloned at \(String(cString: repoDir))")
         }
@@ -74,16 +66,20 @@ public actor Repository {
     public func log() async throws -> [Log] {
         var logs = [Log]()
         var walker: OpaquePointer?
+        
         git_revwalk_new(&walker, repository)
         git_revwalk_push_head(walker)
         git_revwalk_sorting(walker, GIT_SORT_TOPOLOGICAL.rawValue | GIT_SORT_REVERSE.rawValue)
+        
         var oid = git_oid()
         while git_revwalk_next(&oid, walker) == GIT_OK.rawValue {
             var commit: OpaquePointer?
             git_commit_lookup(&commit, repository, &oid)
+            
             guard let message = git_commit_message(commit) else {
                 throw  GitError.log(message: "No message")
             }
+            
             let stringMessage = String(cString: message)
             let log = Log(message: stringMessage)
             logs.append(log)
@@ -98,25 +94,15 @@ public actor Repository {
     /// - Parameter file: The file to add
     public func add(_ file: URL) throws {
         var index: OpaquePointer?
-        let indexError = git_repository_index(&index, repository)
-        if indexError != GIT_OK.rawValue {
-            let error = git_error_last().pointee.message
-            throw GitError.add(message: String(cString: error!))
-        }
+        try execute(git_repository_index(&index, repository))
+        
         guard let filePath = file.path(relativeTo: path)?.path(percentEncoded: false) else {
             throw GitError.add(message: "No such file or directory \(file.path(percentEncoded: false))")
         }
-        let addError = git_index_add_bypath(index, filePath)
+        
+        try execute(git_index_add_bypath(index, filePath))
         logger.log("Adding \(filePath) to the index")
-        if addError != GIT_OK.rawValue {
-            let error = git_error_last().pointee.message
-            throw GitError.add(message: String(cString: error!))
-        }
-        let writeError = git_index_write(index)
-        if writeError != GIT_OK.rawValue {
-            let error = git_error_last().pointee.message
-            throw GitError.add(message: String(cString: error!))
-        }
+        try execute(git_index_write(index))
         git_index_free(index)
     }
     
@@ -125,35 +111,18 @@ public actor Repository {
         var treeOid = git_oid()
         var tree: OpaquePointer?
         
-        let indexError = git_repository_index(&index, repository)
-        if indexError != GIT_OK.rawValue {
-            let error = git_error_last().pointee.message
-            throw GitError.commit(message: String(cString: error!))
-        }
-        
+        try execute(git_repository_index(&index, repository))
         let entryCount = git_index_entrycount(index)
         if entryCount == 0 {
             throw GitError.commit(message: "Empty index")
         }
         
-        let treeError = git_index_write_tree(&treeOid, index)
-        if treeError != GIT_OK.rawValue {
-            let error = git_error_last().pointee.message
-            throw GitError.commit(message: String(cString: error!))
-        }
+        try execute(git_index_write_tree(&treeOid, index))
         git_index_free(index)
         
-        let lookupError = git_tree_lookup(&tree, repository, &treeOid)
-        if lookupError != GIT_OK.rawValue {
-            let error = git_error_last().pointee.message
-            throw GitError.commit(message: String(cString: error!))
-        }
+        try execute(git_tree_lookup(&tree, repository, &treeOid))
         var signature: UnsafeMutablePointer<git_signature>? = nil
-        let signatureError = git_signature_now(&signature, "authorName", "authorEmail")
-        if signatureError != GIT_OK.rawValue {
-            let error = git_error_last().pointee.message
-            throw GitError.commit(message: String(cString: error!))
-        }
+        try execute(git_signature_now(&signature, "authorName", "authorEmail"))
         var parentCommit: OpaquePointer?
         var parentCount: Int = 0
         if git_repository_head_unborn(repository) == 0 {
@@ -166,7 +135,7 @@ public actor Repository {
         var commitOid = git_oid()
         
         // Create the commit
-        let commitError = git_commit_create(
+        try execute(git_commit_create(
             &commitOid,              // Commit OID
             repository,              // Repository
             "HEAD",                  // Reference name
@@ -177,19 +146,23 @@ public actor Repository {
             tree,                    // Tree object
             parentCount,             // Parent count
             &parentCommit            // Parent commits
-        )
+        ))
         
         git_signature_free(signature)
         git_tree_free(tree)
         if parentCommit != nil {
             git_commit_free(parentCommit)
         }
-        
-        if commitError != GIT_OK.rawValue {
-            let error = git_error_last().pointee.message
-            throw GitError.commit(message: String(cString: error!))
-        }
     }
     
+    private func execute(_ block: @autoclosure () -> Int32) throws {
+        let exitCode = block()
+        if exitCode != GIT_OK.rawValue {
+            var errorMessage = "An error occurred"
+            if let error = git_error_last().pointee.message {
+                errorMessage = String(cString: error)
+            }
+            throw GitError.add(message: errorMessage)
+        }
     }
 }
