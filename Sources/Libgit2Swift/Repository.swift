@@ -13,7 +13,7 @@ import libgit2
 public actor Repository {
     
     private let logger = Logger(category: "Repository")
-    private var repository: OpaquePointer?
+    private var repository: OpaquePointer!
     private let path: URL
     
     deinit {
@@ -122,23 +122,13 @@ public actor Repository {
         
         try execute(git_tree_lookup(&tree, repository, &treeOid))
         var signature: UnsafeMutablePointer<git_signature>? = nil
-        var config: OpaquePointer?
-        var name: UnsafePointer<Int8>?
-        var email: UnsafePointer<Int8>?
-        
-        try execute(git_repository_config_snapshot(&config, repository))
-        try execute(git_config_get_string(&name, config, "user.name"))
-        try execute(git_config_get_string(&email, config, "user.email"))
-        
-        guard let name, let email else {
+        let configSnapshot = ConfigSnapshot(repository: repository)
+
+        guard let name = configSnapshot.userName, let email = configSnapshot.userEmail else {
             throw GitError.commit(message: "No user")
         }
+        try execute(git_signature_now(&signature, name, email))
         
-        let stringName = String(cString: name)
-        let stringEmail = String(cString: email)
-        
-        git_config_free(config)
-        try execute(git_signature_now(&signature, stringName, stringEmail))
         var parentCommit: OpaquePointer?
         var parentCount: Int = 0
         if git_repository_head_unborn(repository) == 0 {
@@ -168,17 +158,6 @@ public actor Repository {
         git_tree_free(tree)
         if parentCommit != nil {
             git_commit_free(parentCommit)
-        }
-    }
-    
-    private func execute(_ block: @autoclosure () -> Int32) throws {
-        let exitCode = block()
-        if exitCode != GIT_OK.rawValue {
-            var errorMessage = "An error occurred"
-            if let error = git_error_last().pointee.message {
-                errorMessage = String(cString: error)
-            }
-            throw GitError.add(message: errorMessage)
         }
     }
 }
