@@ -5,13 +5,13 @@
 //  Created by Antonio on 12/06/24.
 //
 
-import os
 import XCTest
 import Libgit2Swift
 
 final class RepositoryTests: XCTestCase {
     
-    private let logger = Logger(subsystem: "com.antoniopantaleo.Libgit2SwiftTests", category: "RepositoryTests")
+    //MARK: Setup
+    
     private let testDirectory = FileManager.default.temporaryDirectory.appending(path: "RepositoryTests")
     
     override func setUpWithError() throws {
@@ -25,49 +25,57 @@ final class RepositoryTests: XCTestCase {
         try super.tearDownWithError()
     }
     
+    //MARK: Tests
+    
     func test_canNotCreateRepositoryFromNonGitDirectory() async throws {
-        logger.info("Creating a fake directory with no git inside")
+        // Given
         let directory = try directory(named: "fake-directory-with-no-git-inside")
-        logger.info("Creating directory at \(directory)")
-        do {
-            logger.info("Trying to create a repository from \(directory)")
-            _ = try await Repository(path: directory)
-            XCTFail("Should have thrown")
-        } catch {
-            XCTAssertNotNil(error)
-        }
+        // Then
+        try await XCTAssertThrowsError(
+            try await Repository(path: directory),
+            "Cannot create a repository from a non-git directory"
+        )
     }
     
     func test_canCreateRepositoryFromGitDirectory() async throws {
+        // Given
         let directory = try gitDirectory(named: "fake-directory-with-git-inside")
+        // When
         let repository = try await Repository(path: directory)
+        // Then
         XCTAssertNotNil(repository)
     }
     
     func test_canCloneWithRealRemoteURL() async throws {
+        // Given
         let directory = testDirectory.appending(path: "antoniopantaleo-cloned")
-        let url = try URL(string: "https://github.com/antoniopantaleo/antoniopantaleo.git").xctUnwrapped
-        let repository = try await Repository(clone: url, path: directory)
+        let gitRepoUrl = try URL(string: "https://github.com/antoniopantaleo/antoniopantaleo.git").xctUnwrapped
+        // When
+        let repository = try await Repository(clone: gitRepoUrl, path: directory)
+        // Then
         XCTAssertNotNil(repository)
     }
     
     func test_canNotCloneWithFakeRemoteURL() async throws {
+        // Given
         let directory = testDirectory.appending(path: "repo")
         let url = try URL(string: "https://a-repository-that-doesn't-exist").xctUnwrapped
-        do {
-            _ = try await Repository(clone: url, path: directory)
-            XCTFail("Should have thrown")
-        } catch {
-            XCTAssertNotNil(error)
-        }
+        // Then
+        try await XCTAssertThrowsError(
+            try await Repository(clone: url, path: directory),
+            "Cannot clone a non existing git repo"
+        )
     }
     
     func test_gitLog_getAllCommitMessages() async throws {
+        // Given
         let directory = try gitDirectory(named: "fake-directory-with-commits-inside")
             .commit(message: "First commit")
             .commit(message: "Second commit")
         let repository = try await Repository(path: directory)
+        // When
         let log = try await repository.log()
+        // Then
         XCTAssertEqual(
             log.map(\.message).map { $0.trimmingCharacters(in: .newlines)},
             ["First commit", "Second commit"]
@@ -75,19 +83,22 @@ final class RepositoryTests: XCTestCase {
     }
     
     func test_canAddAFileToTheIndex() async throws {
+        // Given
         let directory = try gitDirectory(named: "git-directory")
         let filePath = try directory.createFile(
             named: "file1.txt",
             content: try "Hello world!".data(using: .utf8).xctUnwrapped
         )
-        logger.log("Created file at \(filePath.path(percentEncoded: false))")
         let repository = try await Repository(path: directory)
+        // When
         try await repository.add(filePath)
+        // Then
         let indexStatus = try git("status", "-s", directory: directory)
         XCTAssertEqual(indexStatus, "A  file1.txt")
     }
     
     func test_canAddMultipleFilesToTheIndex() async throws {
+        // Given
         let directory = try gitDirectory(named: "git-directory")
         let file1Path = try directory.createFile(
             named: "file1.txt",
@@ -100,29 +111,32 @@ final class RepositoryTests: XCTestCase {
             content: try "Hello world again!".data(using: .utf8).xctUnwrapped
         )
         let repository = try await Repository(path: directory)
+        // When
         try await repository.add(file1Path)
         try await repository.add(file2Path)
+        // Then
         let indexStatus = try git("status", "-s", directory: directory)!.components(separatedBy: .newlines)
         XCTAssertEqual(indexStatus[0], "A  file1.txt")
         XCTAssertEqual(indexStatus[1], "A  folder/file2.txt")
     }
     
     func test_commit_failsIfIndexIsEmpty() async throws {
+        // Given
         let directory = try gitDirectory(named: "empty-git-repo")
         let repository = try await Repository(path: directory)
-        do {
-            try await repository.commit(message: "commit message")
-            XCTFail("Expected to throw but it succeded")
-        } catch {}
+        // Then
+        try await XCTAssertThrowsError(
+            try await repository.commit(message: "commit message"),
+            "Cannot commit if the index is empty"
+        )
     }
     
     func test_commitsSuccesfullyWhenThereAreEntriesInIndex() async throws {
+        // Given
         let directory = try gitDirectory(named: "git-directory")
-        
         let file1Path = try directory.createFile(
             named: "file1.txt",
             content: try "Hello world!".data(using: .utf8).xctUnwrapped)
-        
         try directory.createDirectory(named: "folder")
 
         let file2Path = try directory.createFile(
@@ -130,16 +144,14 @@ final class RepositoryTests: XCTestCase {
             content: try "Hello world again!".data(using: .utf8).xctUnwrapped)
         
         let repository = try await Repository(path: directory)
+        
         try await repository.add(file1Path)
         try await repository.add(file2Path)
-        
-        do {
-            try await repository.commit(message: "this is a commit")
-            let logs = try (try git("log", "--format=%an,%ae,%s", directory: directory)?.components(separatedBy: .newlines)).xctUnwrapped
-            assertLogs(logs, equalTo: [("authorName", "authorEmail", "this is a commit")])
-        } catch {
-            XCTFail("Expected to commit succesfully")
-        }
+        // When
+        try await repository.commit(message: "this is a commit")
+        // Then
+        let logs = try (try git("log", "--format=%an,%ae,%s", directory: directory)?.components(separatedBy: .newlines)).xctUnwrapped
+        assertLogs(logs, equalTo: [("authorName", "authorEmail", "this is a commit")])
     }
     
     
