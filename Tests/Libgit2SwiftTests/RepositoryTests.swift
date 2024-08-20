@@ -134,6 +134,8 @@ final class RepositoryTests: XCTestCase {
     func test_commitsSuccesfullyWhenThereAreEntriesInIndex() async throws {
         // Given
         let directory = try gitDirectory(named: "git-directory")
+            .withGitUserName("John Doe")
+            .withGitUserEmail("john@doe.com")
         let file1Path = try directory.createFile(
             named: "file1.txt",
             content: try "Hello world!".data(using: .utf8).xctUnwrapped)
@@ -151,7 +153,7 @@ final class RepositoryTests: XCTestCase {
         try await repository.commit(message: "this is a commit")
         // Then
         let logs = try (try git("log", "--format=%an,%ae,%s", directory: directory)?.components(separatedBy: .newlines)).xctUnwrapped
-        assertLogs(logs, equalTo: [("authorName", "authorEmail", "this is a commit")])
+        assertLogs(logs, equalTo: [("John Doe", "john@doe.com", "this is a commit")])
     }
     
     
@@ -170,16 +172,18 @@ final class RepositoryTests: XCTestCase {
     private func assertLogs(
         _ logs: [String],
         equalTo data: [(authorName: String, authorEmail: String, commitMessage: String)],
-        formatConverter: (String) -> [String] = { result in result.components(separatedBy: ",") }
+        formatConverter: (String) -> [String] = { result in result.components(separatedBy: ",") },
+        file: StaticString = #file,
+        line: UInt = #line
     ) {
         zip(logs, data).forEach { log, data in
             let components = formatConverter(log)
             let authorName = components[0]
             let authorEmail = components[1]
             let commitMessage = components[2]
-            XCTAssertEqual(authorName, data.authorName)
-            XCTAssertEqual(authorEmail, data.authorEmail)
-            XCTAssertEqual(commitMessage, data.commitMessage)
+            XCTAssertEqual(authorName, data.authorName, file: file, line: line)
+            XCTAssertEqual(authorEmail, data.authorEmail, file: file, line: line)
+            XCTAssertEqual(commitMessage, data.commitMessage, file: file, line: line)
         }
     }
 }

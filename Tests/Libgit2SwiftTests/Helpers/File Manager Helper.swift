@@ -27,6 +27,16 @@ extension URL {
         return filePath
     }
     
+    func withGitUserName(_ name: String) throws -> URL {
+        try git("config", "--local", "user.name", name, directory: self)
+        return self
+    }
+    
+    func withGitUserEmail(_ email: String) throws -> URL {
+        try git("config", "--local", "user.email", email, directory: self)
+        return self
+    }
+    
     @discardableResult
     func createDirectory(named name: String) throws -> URL {
         try FileManager.default.createDirectory(at: self.appending(path: name), withIntermediateDirectories: false)

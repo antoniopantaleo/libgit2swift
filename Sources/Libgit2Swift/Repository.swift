@@ -122,7 +122,23 @@ public actor Repository {
         
         try execute(git_tree_lookup(&tree, repository, &treeOid))
         var signature: UnsafeMutablePointer<git_signature>? = nil
-        try execute(git_signature_now(&signature, "authorName", "authorEmail"))
+        var config: OpaquePointer?
+        var name: UnsafePointer<Int8>?
+        var email: UnsafePointer<Int8>?
+        
+        try execute(git_repository_config_snapshot(&config, repository))
+        try execute(git_config_get_string(&name, config, "user.name"))
+        try execute(git_config_get_string(&email, config, "user.email"))
+        
+        guard let name, let email else {
+            throw GitError.commit(message: "No user")
+        }
+        
+        let stringName = String(cString: name)
+        let stringEmail = String(cString: email)
+        
+        git_config_free(config)
+        try execute(git_signature_now(&signature, stringName, stringEmail))
         var parentCommit: OpaquePointer?
         var parentCount: Int = 0
         if git_repository_head_unborn(repository) == 0 {
