@@ -15,7 +15,11 @@ let package = Package(
         .systemLibrary(
             name: "libgit2",
             pkgConfig: "libgit2",
-            providers: [.brew(["libgit2"])]
+            providers: [
+                .brew(
+                    ["libgit2"]
+                )
+            ]
         ),
         .target(
             name: "Libgit2Swift",
