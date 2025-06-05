@@ -10,7 +10,15 @@ import Foundation
 import libgit2
 
 /// A git repository
-public actor Repository {
+public actor Repository: Sendable {
+    
+    public struct Error: LocalizedError {
+        private let message: String
+        init(message: String) {
+            self.message = message
+        }
+        public var errorDescription: String { message }
+    }
     
     private let logger = Logger(category: "Repository")
     private var repository: OpaquePointer!
@@ -33,7 +41,13 @@ public actor Repository {
     /// - Parameter path: The path where the repository is located
     public init(path: URL) async throws {
         self.init(path)
-        try execute(git_repository_open(&repository, path.path()))
+        guard git_repository_open(&repository, path.path()) == GIT_OK.rawValue else {
+            var errorMessage = "An error occurred"
+            if let error = git_error_last().pointee.message {
+                errorMessage = String(cString: error)
+            }
+            throw Error(message: errorMessage)
+        }
         if let repoDir = git_repository_path(repository) {
             logger.info("Repository opened at \(String(cString: repoDir))")
         }
@@ -51,7 +65,18 @@ public actor Repository {
         self.init(path)
         let now = Date.now
         logger.info("Prepare to clone repo \(repo)")
-        try execute(git_clone(&repository, repo.absoluteString, path.path(), nil))
+        guard git_clone(
+            &repository,
+            repo.absoluteString,
+            path.path(),
+            nil
+        ) == GIT_OK.rawValue else {
+            var errorMessage = "An error occurred"
+            if let error = git_error_last().pointee.message {
+                errorMessage = String(cString: error)
+            }
+            throw Error(message: errorMessage)
+        }
         logger.info("Finished cloning \(repo) in \(now.distance(to: Date.now))")
         if let repoDir = git_repository_path(repository) {
             logger.info("Repository cloned at \(String(cString: repoDir))")
@@ -77,7 +102,7 @@ public actor Repository {
             git_commit_lookup(&commit, repository, &oid)
             
             guard let message = git_commit_message(commit) else {
-                throw  GitError.log(message: "No message")
+                throw Error(message: "No message")
             }
             
             let stringMessage = String(cString: message)
@@ -94,15 +119,32 @@ public actor Repository {
     /// - Parameter file: The file to add
     public func add(_ file: URL) throws {
         var index: OpaquePointer?
-        try execute(git_repository_index(&index, repository))
-        
-        guard let filePath = file.path(relativeTo: path)?.path(percentEncoded: false), FileManager.default.fileExists(atPath: file.path(percentEncoded: false)) else {
-            throw GitError.add(message: "No such file or directory \(file.path(percentEncoded: false))")
+        guard git_repository_index(&index, repository) == GIT_OK.rawValue else {
+            var errorMessage = "An error occurred"
+            if let error = git_error_last().pointee.message {
+                errorMessage = String(cString: error)
+            }
+            throw Error(message: errorMessage)
         }
         
-        try execute(git_index_add_bypath(index, filePath))
+        guard let filePath = file.path(relativeTo: path)?.path(percentEncoded: false), FileManager.default.fileExists(atPath: file.path(percentEncoded: false)) else {
+            throw Error(message: "No such file or directory \(file.path(percentEncoded: false))")
+        }
+        guard git_index_add_bypath(index, filePath) == GIT_OK.rawValue else {
+            var errorMessage = "An error occurred"
+            if let error = git_error_last().pointee.message {
+                errorMessage = String(cString: error)
+            }
+            throw Error(message: errorMessage)
+        }
         logger.log("Adding \(filePath) to the index")
-        try execute(git_index_write(index))
+        guard git_index_write(index) == GIT_OK.rawValue else {
+            var errorMessage = "An error occurred"
+            if let error = git_error_last().pointee.message {
+                errorMessage = String(cString: error)
+            }
+            throw Error(message: errorMessage)
+        }
         git_index_free(index)
     }
     
@@ -111,23 +153,47 @@ public actor Repository {
         var treeOid = git_oid()
         var tree: OpaquePointer?
         
-        try execute(git_repository_index(&index, repository))
+        guard git_repository_index(&index, repository) == GIT_OK.rawValue else {
+            var errorMessage = "An error occurred"
+            if let error = git_error_last().pointee.message {
+                errorMessage = String(cString: error)
+            }
+            throw Error(message: errorMessage)
+        }
         let entryCount = git_index_entrycount(index)
         if entryCount == 0 {
-            throw GitError.commit(message: "Empty index")
+            throw Error(message: "Empty index")
         }
-        
-        try execute(git_index_write_tree(&treeOid, index))
+        guard git_index_write_tree(&treeOid, index) == GIT_OK.rawValue else {
+            var errorMessage = "An error occurred"
+            if let error = git_error_last().pointee.message {
+                errorMessage = String(cString: error)
+            }
+            throw Error(message: errorMessage)
+        }
         git_index_free(index)
         
-        try execute(git_tree_lookup(&tree, repository, &treeOid))
+        guard git_tree_lookup(&tree, repository, &treeOid) == GIT_OK.rawValue else {
+            var errorMessage = "An error occurred"
+            if let error = git_error_last().pointee.message {
+                errorMessage = String(cString: error)
+            }
+            throw Error(message: errorMessage)
+        }
+        
         var signature: UnsafeMutablePointer<git_signature>? = nil
         let configSnapshot = ConfigSnapshot(repository: repository)
 
         guard let name = configSnapshot.userName, let email = configSnapshot.userEmail else {
-            throw GitError.commit(message: "No user")
+            throw Error(message: "No user")
         }
-        try execute(git_signature_now(&signature, name, email))
+        guard git_signature_now(&signature, name, email) == GIT_OK.rawValue else {
+            var errorMessage = "An error occurred"
+            if let error = git_error_last().pointee.message {
+                errorMessage = String(cString: error)
+            }
+            throw Error(message: errorMessage)
+        }
         
         var parentCommit: OpaquePointer?
         var parentCount: Int = 0
@@ -141,7 +207,7 @@ public actor Repository {
         var commitOid = git_oid()
         
         // Create the commit
-        try execute(git_commit_create(
+        guard git_commit_create(
             &commitOid,              // Commit OID
             repository,              // Repository
             "HEAD",                  // Reference name
@@ -152,7 +218,13 @@ public actor Repository {
             tree,                    // Tree object
             parentCount,             // Parent count
             &parentCommit            // Parent commits
-        ))
+        ) == GIT_OK.rawValue else {
+            var errorMessage = "An error occurred"
+            if let error = git_error_last().pointee.message {
+                errorMessage = String(cString: error)
+            }
+            throw Error(message: errorMessage)
+        }
         
         git_signature_free(signature)
         git_tree_free(tree)

@@ -182,7 +182,7 @@ final class RepositoryTests: XCTestCase {
         _ logs: [String],
         equalTo data: [(authorName: String, authorEmail: String, commitMessage: String)],
         formatConverter: (String) -> [String] = { result in result.components(separatedBy: ",") },
-        file: StaticString = #file,
+        file: StaticString = #filePath,
         line: UInt = #line
     ) {
         zip(logs, data).forEach { log, data in

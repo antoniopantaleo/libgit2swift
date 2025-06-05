@@ -8,6 +8,6 @@
 import Foundation
 
 /// A git log message
-public struct Log {
+public struct Log: Sendable {
     public let message: String
 }

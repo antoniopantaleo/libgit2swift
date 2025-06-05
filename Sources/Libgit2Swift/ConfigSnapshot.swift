@@ -30,7 +30,7 @@ public struct ConfigSnapshot: ~Copyable {
     
     private func getStringValue(forKey key: String) -> String? {
         var value: UnsafePointer<Int8>?
-        try? execute(git_config_get_string(&value, config, key))
+        git_config_get_string(&value, config, key)
         guard let value else { return nil }
         return String(cString: value)
     }
