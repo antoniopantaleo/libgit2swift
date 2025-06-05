@@ -77,7 +77,7 @@ final class RepositoryTests: XCTestCase {
         let log = try await repository.log()
         // Then
         XCTAssertEqual(
-            log.map(\.message).map { $0.trimmingCharacters(in: .newlines)},
+            log.map(\.subject).map { $0.trimmingCharacters(in: .newlines)},
             ["First commit", "Second commit"]
         )
     }

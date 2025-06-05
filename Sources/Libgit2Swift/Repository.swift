@@ -107,7 +107,7 @@ public actor Repository: Sendable {
             }
             
             let stringMessage = String(cString: message)
-            let log = Log(message: stringMessage)
+            let log = Log(subject: stringMessage)
             logs.append(log)
             git_commit_free(commit)
         }

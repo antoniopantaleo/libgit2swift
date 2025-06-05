@@ -9,5 +9,5 @@ import Foundation
 
 /// A git log message
 public struct Log: Sendable {
-    public let message: String
+    public let subject: String
 }
