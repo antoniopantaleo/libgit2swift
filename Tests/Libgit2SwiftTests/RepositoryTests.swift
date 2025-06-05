@@ -97,6 +97,15 @@ final class RepositoryTests: XCTestCase {
         XCTAssertEqual(indexStatus, "A  file1.txt")
     }
     
+    func test_cannotAddANonExistingFileToTheIndex() async throws {
+        // Given
+        let directory = try gitDirectory(named: "git-directory")
+        let filePath = directory.appending(component: "non-existing-file")
+        let repository = try await Repository(path: directory)
+        // When
+        try await XCTAssertThrowsError(try await repository.add(filePath))
+    }
+    
     func test_canAddMultipleFilesToTheIndex() async throws {
         // Given
         let directory = try gitDirectory(named: "git-directory")

@@ -96,7 +96,7 @@ public actor Repository {
         var index: OpaquePointer?
         try execute(git_repository_index(&index, repository))
         
-        guard let filePath = file.path(relativeTo: path)?.path(percentEncoded: false) else {
+        guard let filePath = file.path(relativeTo: path)?.path(percentEncoded: false), FileManager.default.fileExists(atPath: file.path(percentEncoded: false)) else {
             throw GitError.add(message: "No such file or directory \(file.path(percentEncoded: false))")
         }
         
