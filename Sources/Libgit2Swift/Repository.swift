@@ -5,8 +5,8 @@
 //  Created by Antonio Pantaleo on 12/06/24.
 //
 
-import os
 import Foundation
+import Logging
 import libgit2
 
 /// A git repository
@@ -20,7 +20,7 @@ public actor Repository: Sendable {
         public var errorDescription: String { message }
     }
     
-    private let logger = Logger(category: "Repository")
+    private let logger = Logger(label: "com.github.antoniopantaleo.libgit2swift.repository")
     private var repository: OpaquePointer!
     private let path: URL
     
@@ -46,6 +46,7 @@ public actor Repository: Sendable {
             if let error = git_error_last().pointee.message {
                 errorMessage = String(cString: error)
             }
+            logger.error(.init(stringLiteral: errorMessage))
             throw Error(message: errorMessage)
         }
         if let repoDir = git_repository_path(repository) {
@@ -137,7 +138,7 @@ public actor Repository: Sendable {
             }
             throw Error(message: errorMessage)
         }
-        logger.log("Adding \(filePath) to the index")
+        logger.info("Adding \(filePath) to the index")
         guard git_index_write(index) == GIT_OK.rawValue else {
             var errorMessage = "An error occurred"
             if let error = git_error_last().pointee.message {

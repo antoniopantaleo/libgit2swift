@@ -11,6 +11,9 @@ let package = Package(
             targets: ["Libgit2Swift"]
         )
     ],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-log.git", from: "1.6.3")
+    ],
     targets: [
         .systemLibrary(
             name: "libgit2",
@@ -23,7 +26,10 @@ let package = Package(
         ),
         .target(
             name: "Libgit2Swift",
-            dependencies: ["libgit2"]
+            dependencies: [
+                "libgit2",
+                .product(name: "Logging", package: "swift-log")
+            ]
         ),
         .testTarget(
             name: "Libgit2SwiftTests",
