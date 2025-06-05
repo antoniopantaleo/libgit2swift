@@ -5,32 +5,38 @@
 //  Created by Antonio on 19/07/24.
 //
 
-import XCTest
+import Foundation
+import Testing
 @testable import Libgit2Swift
 
-final class URLExtensionsTests: XCTestCase {
+@Suite("URLExtensions")
+struct URLExtensionsTests {
     
-    func test_pathRelative_toParentDirectory() throws {
-        let baseURL = try URL(string: "/var/lib").xctUnwrapped
-        let sut = try URL(string: "/var/lib/myFile.txt").xctUnwrapped
-        XCTAssertEqual(sut.path(relativeTo: baseURL)?.path(percentEncoded: false), "myFile.txt")
+    @Test("path relative to parent directory")
+    func parentDirectory() throws {
+        let baseURL = try #require(URL(string: "/var/lib"))
+        let sut = try #require(URL(string: "/var/lib/myFile.txt"))
+        #expect(sut.path(relativeTo: baseURL)?.path(percentEncoded: false) == "myFile.txt")
     }
     
-    func test_pathRelative_toParentDirectory_withAdditionalDirectories() throws {
-        let baseURL = try URL(string: "/var/lib").xctUnwrapped
-        let sut = try URL(string: "/var/lib/xcode/15.1/myFile.txt").xctUnwrapped
-        XCTAssertEqual(sut.path(relativeTo: baseURL)?.path(percentEncoded: false), "xcode/15.1/myFile.txt")
+    @Test("path relative to parent directory with single additional directory")
+    func additionalDirectories() throws {
+        let baseURL = try #require(URL(string: "/var/lib"))
+        let sut = try #require(URL(string: "/var/lib/xcode/15.1/myFile.txt"))
+        #expect(sut.path(relativeTo: baseURL)?.path(percentEncoded: false) == "xcode/15.1/myFile.txt")
     }
     
-    func test_pathRelative_toParentDirectory_withRepeatedOriginalDirectory() throws {
-        let baseURL = try URL(string: "/var/lib").xctUnwrapped
-        let sut = try URL(string: "/var/lib/xcode/var/lib/myFile.txt").xctUnwrapped
-        XCTAssertEqual(sut.path(relativeTo: baseURL)?.path(percentEncoded: false), "xcode/var/lib/myFile.txt")
+    @Test("path relative to parent directory with repeated original directory")
+    func repeatedOriginalDirectory() throws {
+        let baseURL = try #require(URL(string: "/var/lib"))
+        let sut = try #require(URL(string: "/var/lib/xcode/var/lib/myFile.txt"))
+        #expect(sut.path(relativeTo: baseURL)?.path(percentEncoded: false) == "xcode/var/lib/myFile.txt")
     }
     
-    func test_pathRelative_toParentDirectory_differentDirectories() throws {
-        let baseURL = try URL(string: "/var/lib").xctUnwrapped
-        let sut = try URL(string: "/xcode/myFile.txt").xctUnwrapped
-        XCTAssertNil(sut.path(relativeTo: baseURL))
+    @Test("path relative to parent directory different directories")
+    func differentDirectories() throws {
+        let baseURL = try #require(URL(string: "/var/lib"))
+        let sut = try #require(URL(string: "/xcode/myFile.txt"))
+        #expect(sut.path(relativeTo: baseURL) == nil)
     }
 }

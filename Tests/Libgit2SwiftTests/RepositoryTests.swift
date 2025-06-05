@@ -5,69 +5,68 @@
 //  Created by Antonio on 12/06/24.
 //
 
-import XCTest
+import Foundation
+import Testing
 import Libgit2Swift
 
-final class RepositoryTests: XCTestCase {
-    
-    //MARK: Setup
+@Suite("Repository", .serialized)
+struct RepositoryTests: ~Copyable {
     
     private let testDirectory = FileManager.default.temporaryDirectory.appending(path: "RepositoryTests")
     
-    override func setUpWithError() throws {
-        try super.setUpWithError()
+    //MARK: Setup
+    
+    init() throws {
         try? FileManager.default.removeItem(atPath: testDirectory.path())
         try FileManager.default.createDirectory(at: testDirectory, withIntermediateDirectories: false)
     }
     
-    override func tearDownWithError() throws {
-        try FileManager.default.removeItem(atPath: testDirectory.path())
-        try super.tearDownWithError()
+    deinit {
+        try? FileManager.default.removeItem(atPath: testDirectory.path())
     }
     
     //MARK: Tests
     
-    func test_canNotCreateRepositoryFromNonGitDirectory() async throws {
+    @Test("init from non-git directory")
+    func nonGitDirectory() async throws {
         // Given
         let directory = try directory(named: "fake-directory-with-no-git-inside")
         // Then
-        try await XCTAssertThrowsError(
-            try await Repository(path: directory),
-            "Cannot create a repository from a non-git directory"
-        )
+        await #expect(throws: Repository.Error.self, "Cannot create a repository from a non-git directory") {
+            try await Repository(path: directory)
+        }
     }
     
-    func test_canCreateRepositoryFromGitDirectory() async throws {
+    @Test("init from git directory")
+    func gitDirectory() async throws {
         // Given
         let directory = try gitDirectory(named: "fake-directory-with-git-inside")
-        // When
-        let repository = try await Repository(path: directory)
         // Then
-        XCTAssertNotNil(repository)
+        _ = try await Repository(path: directory)
     }
     
-    func test_canCloneWithRealRemoteURL() async throws {
+    @Test("clone existing remote")
+    func realRemoteURL() async throws {
         // Given
         let directory = testDirectory.appending(path: "antoniopantaleo-cloned")
-        let gitRepoUrl = try URL(string: "https://github.com/antoniopantaleo/antoniopantaleo.git").xctUnwrapped
-        // When
-        let repository = try await Repository(clone: gitRepoUrl, path: directory)
+        let gitRepoUrl = try #require(URL(string: "https://github.com/antoniopantaleo/antoniopantaleo.git"))
         // Then
-        XCTAssertNotNil(repository)
+        _ = try await Repository(clone: gitRepoUrl, path: directory)
     }
     
-    func test_canNotCloneWithFakeRemoteURL() async throws {
+    @Test("clone non existing remote")
+    func nonExistingRemoteURL() async throws {
         // Given
         let directory = testDirectory.appending(path: "repo")
-        let url = try URL(string: "https://a-repository-that-doesn't-exist").xctUnwrapped
+        let url = try #require(URL(string: "https://a-repository-that-doesn't-exist"))
         // Then
-        try await XCTAssertThrowsError(
-            try await Repository(clone: url, path: directory),
-            "Cannot clone a non existing git repo"
-        )
+        await #expect(throws: Repository.Error.self, "Cannot clone a non existing git repo") {
+            try await Repository(clone: url, path: directory)
+        }
     }
     
-    func test_gitLog_getAllCommitMessages() async throws {
+    @Test("log")
+    func logMessages() async throws {
         // Given
         let directory = try gitDirectory(named: "fake-directory-with-commits-inside")
             .commit(message: "First commit")
@@ -76,48 +75,53 @@ final class RepositoryTests: XCTestCase {
         // When
         let log = try await repository.log()
         // Then
-        XCTAssertEqual(
-            log.map(\.subject).map { $0.trimmingCharacters(in: .newlines)},
+        #expect(
+            log.map(\.subject).map { $0.trimmingCharacters(in: .newlines)} ==
             ["First commit", "Second commit"]
         )
     }
     
-    func test_canAddAFileToTheIndex() async throws {
+    @Test("add single file to index")
+    func addSingleFile() async throws {
         // Given
         let directory = try gitDirectory(named: "git-directory")
         let filePath = try directory.createFile(
             named: "file1.txt",
-            content: try "Hello world!".data(using: .utf8).xctUnwrapped
+            content: try #require("Hello world!".data(using: .utf8))
         )
         let repository = try await Repository(path: directory)
         // When
         try await repository.add(filePath)
         // Then
         let indexStatus = try git("status", "-s", directory: directory)
-        XCTAssertEqual(indexStatus, "A  file1.txt")
+        #expect(indexStatus == "A  file1.txt")
     }
     
-    func test_cannotAddANonExistingFileToTheIndex() async throws {
+    @Test("add non existing file to index")
+    func addNonExistingFile() async throws {
         // Given
         let directory = try gitDirectory(named: "git-directory")
         let filePath = directory.appending(component: "non-existing-file")
         let repository = try await Repository(path: directory)
         // When
-        try await XCTAssertThrowsError(try await repository.add(filePath))
+        await #expect(throws: Repository.Error.self) {
+            try await repository.add(filePath)
+        }
     }
     
-    func test_canAddMultipleFilesToTheIndex() async throws {
+    @Test("add multiple files to index")
+    func addMultipleFiles() async throws {
         // Given
         let directory = try gitDirectory(named: "git-directory")
         let file1Path = try directory.createFile(
             named: "file1.txt",
-            content: try "Hello world!".data(using: .utf8).xctUnwrapped
+            content: try #require("Hello world!".data(using: .utf8))
         )
         try directory.createDirectory(named: "folder")
         
         let file2Path = try directory.createFile(
             named: "folder/file2.txt",
-            content: try "Hello world again!".data(using: .utf8).xctUnwrapped
+            content: try #require("Hello world again!".data(using: .utf8))
         )
         let repository = try await Repository(path: directory)
         // When
@@ -125,34 +129,35 @@ final class RepositoryTests: XCTestCase {
         try await repository.add(file2Path)
         // Then
         let indexStatus = try git("status", "-s", directory: directory)!.components(separatedBy: .newlines)
-        XCTAssertEqual(indexStatus[0], "A  file1.txt")
-        XCTAssertEqual(indexStatus[1], "A  folder/file2.txt")
+        #expect(indexStatus[0] == "A  file1.txt")
+        #expect(indexStatus[1] == "A  folder/file2.txt")
     }
     
-    func test_commit_failsIfIndexIsEmpty() async throws {
+    @Test("commit empty index")
+    func commitEmptyIndex() async throws {
         // Given
         let directory = try gitDirectory(named: "empty-git-repo")
         let repository = try await Repository(path: directory)
         // Then
-        try await XCTAssertThrowsError(
-            try await repository.commit(message: "commit message"),
-            "Cannot commit if the index is empty"
-        )
+        await #expect(throws: Repository.Error.self, "Cannot commit if the index is empty") {
+            try await repository.commit(message: "commit message")
+        }
     }
     
-    func test_commitsSuccesfullyWhenThereAreEntriesInIndex() async throws {
+    @Test("commit")
+    func commit() async throws {
         // Given
         let directory = try gitDirectory(named: "git-directory")
             .withGitUserName("John Doe")
             .withGitUserEmail("john@doe.com")
         let file1Path = try directory.createFile(
             named: "file1.txt",
-            content: try "Hello world!".data(using: .utf8).xctUnwrapped)
+            content: try #require("Hello world!".data(using: .utf8)))
         try directory.createDirectory(named: "folder")
 
         let file2Path = try directory.createFile(
             named: "folder/file2.txt",
-            content: try "Hello world again!".data(using: .utf8).xctUnwrapped)
+            content: try #require("Hello world again!".data(using: .utf8)))
         
         let repository = try await Repository(path: directory)
         
@@ -161,7 +166,7 @@ final class RepositoryTests: XCTestCase {
         // When
         try await repository.commit(message: "this is a commit")
         // Then
-        let logs = try (try git("log", "--format=%an,%ae,%s", directory: directory)?.components(separatedBy: .newlines)).xctUnwrapped
+        let logs = try #require((try git("log", "--format=%an,%ae,%s", directory: directory)?.components(separatedBy: .newlines)))
         assertLogs(logs, equalTo: [("John Doe", "john@doe.com", "this is a commit")])
     }
     
@@ -190,9 +195,9 @@ final class RepositoryTests: XCTestCase {
             let authorName = components[0]
             let authorEmail = components[1]
             let commitMessage = components[2]
-            XCTAssertEqual(authorName, data.authorName, file: file, line: line)
-            XCTAssertEqual(authorEmail, data.authorEmail, file: file, line: line)
-            XCTAssertEqual(commitMessage, data.commitMessage, file: file, line: line)
+            #expect(authorName == data.authorName)
+            #expect(authorEmail == data.authorEmail)
+            #expect(commitMessage == data.commitMessage)
         }
     }
 }
