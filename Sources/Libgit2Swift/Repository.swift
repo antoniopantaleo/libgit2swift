@@ -47,6 +47,7 @@ public actor Repository: Sendable {
                 errorMessage = String(cString: error)
             }
             logger.error(.init(stringLiteral: errorMessage))
+            git_repository_free(repository)
             throw Error(message: errorMessage)
         }
         if let repoDir = git_repository_path(repository) {
@@ -76,6 +77,7 @@ public actor Repository: Sendable {
             if let error = git_error_last().pointee.message {
                 errorMessage = String(cString: error)
             }
+            git_repository_free(repository)
             throw Error(message: errorMessage)
         }
         logger.info("Finished cloning \(repo) in \(now.distance(to: Date.now))")
@@ -86,33 +88,38 @@ public actor Repository: Sendable {
 
     
     
-    /// Get the logs of the repository
+    /// Get the commit history of the repository
     ///
-    /// - Returns: An array of logs
-    public func log() async throws -> [Log] {
-        var logs = [Log]()
+    /// - Returns: An array of commits
+    public func log() async throws -> [Commit] {
+        var commits = [Commit]()
         var walker: OpaquePointer?
         
-        git_revwalk_new(&walker, repository)
+        guard git_revwalk_new(&walker, repository) == GIT_OK.rawValue, let walker else {
+            throw Error(message: "Failed to create revision walker")
+        }
+        
+        defer { git_revwalk_free(walker) }
+        
         git_revwalk_push_head(walker)
-        git_revwalk_sorting(walker, GIT_SORT_TOPOLOGICAL.rawValue | GIT_SORT_REVERSE.rawValue)
+        git_revwalk_sorting(walker, GIT_SORT_TOPOLOGICAL.rawValue)
         
         var oid = git_oid()
         while git_revwalk_next(&oid, walker) == GIT_OK.rawValue {
             var commit: OpaquePointer?
-            git_commit_lookup(&commit, repository, &oid)
-            
-            guard let message = git_commit_message(commit) else {
-                throw Error(message: "No message")
+            guard git_commit_lookup(&commit, repository, &oid) == GIT_OK.rawValue, let commit else {
+                continue
             }
+            defer { git_commit_free(commit) }
             
-            let stringMessage = String(cString: message)
-            let log = Log(subject: stringMessage)
-            logs.append(log)
-            git_commit_free(commit)
+            guard let swiftCommit = Commit(pointer: commit) else {
+                logger.warning("Failed to convert commit")
+                continue
+            }
+            commits.append(swiftCommit)
         }
-        git_revwalk_free(walker)
-        return logs
+        
+        return commits
     }
     
     /// Add a file to the index
@@ -184,7 +191,7 @@ public actor Repository: Sendable {
         
         var signature: UnsafeMutablePointer<git_signature>? = nil
         let configSnapshot = ConfigSnapshot(repository: repository)
-
+        
         guard let name = configSnapshot.userName, let email = configSnapshot.userEmail else {
             throw Error(message: "No user")
         }
@@ -232,5 +239,46 @@ public actor Repository: Sendable {
         if parentCommit != nil {
             git_commit_free(parentCommit)
         }
+    }
+    
+    /// Get the HEAD commit
+    ///
+    /// - Returns: The HEAD commit object
+    public func head() async throws -> Commit? {
+        var headRef: OpaquePointer?
+        guard git_repository_head(&headRef, repository) == GIT_OK.rawValue else {
+            var errorMessage = "Failed to get HEAD reference"
+            if let error = git_error_last().pointee.message {
+                errorMessage = String(cString: error)
+            }
+            throw Error(message: errorMessage)
+        }
+        
+        defer {
+            if let headRef = headRef {
+                git_reference_free(headRef)
+            }
+        }
+        
+        var commit: OpaquePointer?
+        guard git_reference_peel(&commit, headRef, GIT_OBJECT_COMMIT) == GIT_OK.rawValue else {
+            var errorMessage = "Failed to resolve HEAD to commit"
+            if let error = git_error_last().pointee.message {
+                errorMessage = String(cString: error)
+            }
+            throw Error(message: errorMessage)
+        }
+        
+        defer {
+            if let commit = commit {
+                git_object_free(commit)
+            }
+        }
+        
+        guard let commit = commit else {
+            throw Error(message: "Failed to get HEAD commit")
+        }
+        
+        return Commit(pointer: commit)
     }
 }

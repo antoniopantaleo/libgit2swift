@@ -74,10 +74,11 @@ struct RepositoryTests: ~Copyable {
         let repository = try await Repository(path: directory)
         // When
         let log = try await repository.log()
+        print("✨", log.map(\.parentIds))
         // Then
         #expect(
-            log.map(\.subject).map { $0.trimmingCharacters(in: .newlines)} ==
-            ["First commit", "Second commit"]
+            log.map(\.message) ==
+            ["Second commit", "First commit"]
         )
     }
     
