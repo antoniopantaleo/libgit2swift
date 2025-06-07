@@ -7,8 +7,8 @@ let package = Package(
     platforms: [.macOS(.v13)],
     products: [
         .library(
-            name: "Libgit2Swift",
-            targets: ["Libgit2Swift"]
+            name: "Git",
+            targets: ["Git"]
         )
     ],
     dependencies: [
@@ -25,19 +25,19 @@ let package = Package(
             ]
         ),
         .target(
-            name: "Libgit2Swift",
+            name: "Git",
             dependencies: [
                 "libgit2",
                 .product(name: "Logging", package: "swift-log")
             ]
         ),
         .testTarget(
-            name: "Libgit2SwiftTests",
+            name: "GitTests",
             dependencies: [
-                .target(name: "Libgit2Swift")
+                .target(name: "Git")
             ],
             resources: [
-                .process("Libgit2Swift.xctestplan")
+                .process("Git.xctestplan")
             ]
         )
     ]

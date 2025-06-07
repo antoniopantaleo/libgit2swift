@@ -7,7 +7,7 @@
 
 import Foundation
 import Testing
-@testable import Libgit2Swift
+@testable import Git
 
 @Suite("URLExtensions")
 struct URLExtensionsTests {

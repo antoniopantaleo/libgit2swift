@@ -7,7 +7,7 @@
 
 import Foundation
 import Testing
-import Libgit2Swift
+import Git
 
 @Suite("Repository", .serialized)
 struct RepositoryTests: ~Copyable {
@@ -74,7 +74,6 @@ struct RepositoryTests: ~Copyable {
         let repository = try await Repository(path: directory)
         // When
         let log = try await repository.log()
-        print("✨", log.map(\.parentIds))
         // Then
         #expect(
             log.map(\.message) ==

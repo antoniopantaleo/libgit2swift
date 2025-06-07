@@ -24,8 +24,8 @@
     {
       "target" : {
         "containerPath" : "container:",
-        "identifier" : "Libgit2SwiftTests",
-        "name" : "Libgit2SwiftTests"
+        "identifier" : "GitTests",
+        "name" : "GitTests"
       }
     }
   ],
