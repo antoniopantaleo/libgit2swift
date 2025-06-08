@@ -1,0 +1,3 @@
+[tools]
+swift = "6.1"
+git-cliff = "2.9.1"
