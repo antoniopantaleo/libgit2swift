@@ -14,7 +14,7 @@ public actor Repository: Sendable {
     
     public struct Error: LocalizedError {
         private let message: String
-        init(message: String) {
+        public init(message: String) {
             self.message = message
         }
         public var errorDescription: String { message }

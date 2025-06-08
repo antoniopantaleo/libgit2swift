@@ -170,6 +170,148 @@ struct RepositoryTests: ~Copyable {
         assertLogs(logs, equalTo: [("John Doe", "john@doe.com", "this is a commit")])
     }
     
+    @Test("head from repository with commits")
+    func headWithCommits() async throws {
+        // Given
+        let directory = try gitDirectory(named: "git-directory-with-commits")
+            .withGitUserName("Jane Doe")
+            .withGitUserEmail("jane@doe.com")
+        let filePath = try directory.createFile(
+            named: "readme.txt",
+            content: try #require("Initial content".data(using: .utf8))
+        )
+        let repository = try await Repository(path: directory)
+        
+        try await repository.add(filePath)
+        try await repository.commit(message: "Initial commit")
+        
+        // Add another commit
+        _ = try directory.createFile(
+            named: "second.txt",
+            content: try #require("Second file".data(using: .utf8))
+        )
+        try await repository.add(directory.appending(path: "second.txt"))
+        try await repository.commit(message: "Second commit")
+        
+        // When
+        let head = try await repository.head()
+        
+        // Then
+        let headCommit = try #require(head)
+        #expect(headCommit.message == "Second commit")
+        #expect(headCommit.author.name == "Jane Doe")
+        #expect(headCommit.author.email == "jane@doe.com")
+        #expect(headCommit.committer.name == "Jane Doe")
+        #expect(headCommit.committer.email == "jane@doe.com")
+        #expect(!headCommit.id.isEmpty)
+    }
+    
+    @Test("head from repository with single commit")
+    func headWithSingleCommit() async throws {
+        // Given
+        let directory = try gitDirectory(named: "git-directory-single-commit")
+            .withGitUserName("Alice Smith")
+            .withGitUserEmail("alice@smith.com")
+        let filePath = try directory.createFile(
+            named: "file.txt",
+            content: try #require("Content".data(using: .utf8))
+        )
+        let repository = try await Repository(path: directory)
+        
+        try await repository.add(filePath)
+        try await repository.commit(message: "Only commit")
+        
+        // When
+        let head = try await repository.head()
+        
+        // Then
+        let headCommit = try #require(head)
+        #expect(headCommit.message == "Only commit")
+        #expect(headCommit.author.name == "Alice Smith")
+        #expect(headCommit.author.email == "alice@smith.com")
+        #expect(headCommit.parentIds.isEmpty) // First commit has no parents
+    }
+    
+    @Test("head from empty repository")
+    func headFromEmptyRepository() async throws {
+        // Given
+        let directory = try gitDirectory(named: "empty-git-repo")
+        let repository = try await Repository(path: directory)
+        
+        // When/Then
+        await #expect(throws: Repository.Error.self, "Empty repository should not have HEAD") {
+            _ = try await repository.head()
+        }
+    }
+    
+    
+    @Test("add file outside repository")
+    func addFileOutsideRepository() async throws {
+        // Given
+        let directory = try gitDirectory(named: "git-directory")
+        let outsideFile = try testDirectory.createFile(
+            named: "outside.txt",
+            content: try #require("Outside content".data(using: .utf8))
+        )
+        let repository = try await Repository(path: directory)
+        
+        // When/Then
+        await #expect(throws: Repository.Error.self, "Should fail for files outside repository") {
+            try await repository.add(outsideFile)
+        }
+    }
+    
+    @Test("log from repository with no commits")
+    func logFromEmptyRepository() async throws {
+        // Given
+        let directory = try gitDirectory(named: "empty-git-repo")
+        let repository = try await Repository(path: directory)
+        
+        // When
+        let commits = try await repository.log()
+        
+        // Then
+        #expect(commits.isEmpty)
+    }
+    
+    @Test("repository error localized description")
+    func repositoryErrorDescription() {
+        // Given
+        let error = Repository.Error(message: "Test error message")
+        
+        // Then
+        #expect(error.errorDescription == "Test error message")
+    }
+    
+    @Test("commit with multiline message")
+    func commitWithMultilineMessage() async throws {
+        // Given
+        let directory = try gitDirectory(named: "git-directory")
+            .withGitUserName("John Doe")
+            .withGitUserEmail("john@doe.com")
+        let filePath = try directory.createFile(
+            named: "file.txt",
+            content: try #require("Content".data(using: .utf8))
+        )
+        let repository = try await Repository(path: directory)
+        
+        try await repository.add(filePath)
+        
+        let multilineMessage = """
+        This is a multiline commit message
+        
+        With additional details
+        And even more information
+        """
+        
+        // When
+        try await repository.commit(message: multilineMessage)
+        
+        // Then
+        let commits = try await repository.log()
+        #expect(commits.first?.message == multilineMessage)
+    }
+    
     
     // MARK: - Helpers
     
