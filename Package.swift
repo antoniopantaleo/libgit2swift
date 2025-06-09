@@ -29,6 +29,13 @@ let package = Package(
                 "libgit2",
                 .product(name: "Logging", package: "swift-log")
             ],
+            cSettings: [
+                .unsafeFlags(["-I/opt/homebrew/include", "-I/opt/homebrew/opt/libgit2/include"], .when(platforms: [.macOS]))
+            ],
+            linkerSettings: [
+                .linkedLibrary("git2"),
+                .unsafeFlags(["-L/opt/homebrew/lib"], .when(platforms: [.macOS]))
+            ]
         ),
         .testTarget(
             name: "GitTests",
