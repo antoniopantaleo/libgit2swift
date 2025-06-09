@@ -17,11 +17,10 @@ let package = Package(
     targets: [
         .systemLibrary(
             name: "libgit2",
+            path: "Sources/libgit2",
             pkgConfig: "libgit2",
             providers: [
-                .brew(
-                    ["libgit2"]
-                )
+                .brew(["libgit2"])
             ]
         ),
         .target(
@@ -29,7 +28,7 @@ let package = Package(
             dependencies: [
                 "libgit2",
                 .product(name: "Logging", package: "swift-log")
-            ]
+            ],
         ),
         .testTarget(
             name: "GitTests",
