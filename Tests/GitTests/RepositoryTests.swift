@@ -195,7 +195,7 @@ struct RepositoryTests: ~Copyable {
         try await repository.commit(message: "Second commit")
         
         // When
-        let head = try await repository.head()
+        let head = try await repository.head
         
         // Then
         let headCommit = try #require(head)
@@ -223,7 +223,7 @@ struct RepositoryTests: ~Copyable {
         try await repository.commit(message: "Only commit")
         
         // When
-        let head = try await repository.head()
+        let head = try await repository.head
         
         // Then
         let headCommit = try #require(head)
@@ -241,7 +241,7 @@ struct RepositoryTests: ~Copyable {
         
         // When/Then
         await #expect(throws: Repository.Error.self, "Empty repository should not have HEAD") {
-            _ = try await repository.head()
+            _ = try await repository.head
         }
     }
     

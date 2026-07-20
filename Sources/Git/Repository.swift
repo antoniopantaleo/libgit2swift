@@ -244,41 +244,43 @@ public actor Repository: Sendable {
     /// Get the HEAD commit
     ///
     /// - Returns: The HEAD commit object
-    public func head() async throws -> Commit? {
-        var headRef: OpaquePointer?
-        guard git_repository_head(&headRef, repository) == GIT_OK.rawValue else {
-            var errorMessage = "Failed to get HEAD reference"
-            if let error = git_error_last().pointee.message {
-                errorMessage = String(cString: error)
+    public var head: Commit? {
+        get throws {
+            var headRef: OpaquePointer?
+            guard git_repository_head(&headRef, repository) == GIT_OK.rawValue else {
+                var errorMessage = "Failed to get HEAD reference"
+                if let error = git_error_last().pointee.message {
+                    errorMessage = String(cString: error)
+                }
+                throw Error(message: errorMessage)
             }
-            throw Error(message: errorMessage)
-        }
-        
-        defer {
-            if let headRef = headRef {
-                git_reference_free(headRef)
+            
+            defer {
+                if let headRef = headRef {
+                    git_reference_free(headRef)
+                }
             }
-        }
-        
-        var commit: OpaquePointer?
-        guard git_reference_peel(&commit, headRef, GIT_OBJECT_COMMIT) == GIT_OK.rawValue else {
-            var errorMessage = "Failed to resolve HEAD to commit"
-            if let error = git_error_last().pointee.message {
-                errorMessage = String(cString: error)
+            
+            var commit: OpaquePointer?
+            guard git_reference_peel(&commit, headRef, GIT_OBJECT_COMMIT) == GIT_OK.rawValue else {
+                var errorMessage = "Failed to resolve HEAD to commit"
+                if let error = git_error_last().pointee.message {
+                    errorMessage = String(cString: error)
+                }
+                throw Error(message: errorMessage)
             }
-            throw Error(message: errorMessage)
-        }
-        
-        defer {
-            if let commit = commit {
-                git_object_free(commit)
+            
+            defer {
+                if let commit = commit {
+                    git_object_free(commit)
+                }
             }
+            
+            guard let commit = commit else {
+                throw Error(message: "Failed to get HEAD commit")
+            }
+            
+            return Commit(pointer: commit)
         }
-        
-        guard let commit = commit else {
-            throw Error(message: "Failed to get HEAD commit")
-        }
-        
-        return Commit(pointer: commit)
     }
 }
