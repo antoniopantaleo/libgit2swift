@@ -94,7 +94,7 @@ struct RepositoryTests: ~Copyable {
         try await repository.add(filePath)
         // Then
         let indexStatus = try git("status", "-s", directory: directory)
-        #expect(indexStatus == "A  file1.txt")
+        #expect(indexStatus == "## No commits yet on master\nA  file1.txt")
     }
     
     @Test("add non existing file to index")
@@ -129,8 +129,9 @@ struct RepositoryTests: ~Copyable {
         try await repository.add(file2Path)
         // Then
         let indexStatus = try git("status", "-s", directory: directory)!.components(separatedBy: .newlines)
-        #expect(indexStatus[0] == "A  file1.txt")
-        #expect(indexStatus[1] == "A  folder/file2.txt")
+        #expect(indexStatus[0] == "## No commits yet on master")
+        #expect(indexStatus[1] == "A  file1.txt")
+        #expect(indexStatus[2] == "A  folder/file2.txt")
     }
     
     @Test("commit empty index")
