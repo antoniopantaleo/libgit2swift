@@ -9,8 +9,16 @@ import Foundation
 import Logging
 import libgit2
 
+@LibGit2
+public protocol GitRepository {
+    init(path: URL) throws
+    init(clone repo: URL, path: URL) async throws
+    
+    func log() async throws -> [Commit]
+}
+
 /// A git repository
-public actor Repository: Sendable {
+public final class Repository: GitRepository {
     
     public struct Error: LocalizedError {
         private let message: String
@@ -24,22 +32,16 @@ public actor Repository: Sendable {
     private var repository: OpaquePointer!
     private let path: URL
     
-    deinit {
-        git_libgit2_shutdown()
-    }
-    
     private init(_ path: URL) {
         self.path = path
-        git_libgit2_init()
     }
-    
     
     /// Open a git repository from a given path
     ///
     /// > The path must be a valid git repository, otherwise an error is thrown
     ///
     /// - Parameter path: The path where the repository is located
-    public init(path: URL) async throws {
+    public convenience init(path: URL) throws {
         self.init(path)
         guard git_repository_open(&repository, path.path()) == GIT_OK.rawValue else {
             var errorMessage = "An error occurred"
@@ -63,7 +65,7 @@ public actor Repository: Sendable {
     /// - Parameters:
     ///   - repo: The URL of the repository to clone
     ///   - path: The path where to clone the repository
-    public init(clone repo: URL, path: URL) async throws {
+    public convenience init(clone repo: URL, path: URL) async throws {
         self.init(path)
         let now = Date.now
         logger.info("Prepare to clone repo \(repo)")
@@ -282,5 +284,18 @@ public actor Repository: Sendable {
             
             return Commit(pointer: commit)
         }
+    }
+}
+
+@globalActor
+public actor LibGit2 {
+    public static let shared = LibGit2()
+    
+    deinit {
+        git_libgit2_shutdown()
+    }
+    
+    private init() {
+        git_libgit2_init()
     }
 }
